@@ -41,7 +41,7 @@ enum actiontype
 	// New 2.55 ActionTypes
 	falling, lavadrowning, sideswimming, sideswimhit, sideswimattacking, 
 	sidewaterhold1, sidewaterhold2, sideswimcasting, sideswimfreeze, sidedrowning,
-	sideswimisspinning, sideswimischarging, lifting, la_max
+	sideswimisspinning, sideswimischarging, lifting, sliding, la_max
 };
 
 typedef struct tilesequence
@@ -324,6 +324,10 @@ public:
 	zfix liftheight;
 	uint32_t liftflags;
 	optional<byte> last_lift_id;
+	
+	zfix ice_vx, ice_vy;
+	int32_t ice_combo;
+	int32_t script_ice_combo;
 
 private:
 	ffcdata const* platform_ffc;
@@ -345,6 +349,7 @@ public:
 	bool pitslide();
 	void pitfall();
 	void moveheroOld();
+	void handle_slide(newcombo const& icecmb, zfix& dx, zfix& dy);
 	void mod_steps(std::vector<zfix*>& v);
 	void get_move(int movedir, zfix& dx, zfix& dy, int32_t& facedir);
 	bool scr_walkflag(zfix_round dx,zfix_round dy,int dir,bool kb,int* canladder = nullptr);
