@@ -888,9 +888,9 @@ void combo_default(newcombo& ref, bool typeonly)
 		case cICY:
 			ref.usrflags |= cflag1|cflag2;
 			ref.attribytes[0] = 75;
-			ref.attributes[0] = 0.0250_zf.getZLong();
-			ref.attributes[1] = 0.0100_zf.getZLong();
-			ref.attributes[2] = 3.0000_zf.getZLong();
+			ref.attributes[0] = 0.0250_zl;
+			ref.attributes[1] = 0.0100_zl;
+			ref.attributes[2] = 3.0000_zl;
 			break;
 		//CHESTS
 		case cLOCKEDCHEST:

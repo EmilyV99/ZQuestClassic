@@ -19372,7 +19372,7 @@ void HeroClass::movehero()
 			ic = ice_combo = get_icy(x+7, y+(bigHitbox?8:12), ICY_PLAYER);
 		if(script_ice_combo)
 		{
-			if(unsigned(script_ice_combo) < MAXCOMBOS) && check_icy(combobuf[script_ice_combo], ICY_PLAYER))
+			if((unsigned(script_ice_combo) < MAXCOMBOS) && check_icy(combobuf[script_ice_combo], ICY_PLAYER))
 				ic = script_ice_combo;
 			else ic = 0;
 		}
