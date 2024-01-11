@@ -6306,7 +6306,23 @@ bool MoveFlags[2];
  * [0] == Obeys gravity (see ->Gravity)
  * [1] == Can fall in pitfalls
  * Read-Write
- 
+
+float IceVx;
+float IceVy;
+ * The player's ice velocity (in pixels per frame).
+ * Read/write, has no effect unless the player is Sliding.
+ * If the player is not Sliding, the engine will clear these to '0'.
+
+bool Sliding;
+ * Read-only. True if the player is sliding on ice.
+
+int IceCombo;
+ * Read-only. The icy combo the player is sliding on.
+
+int ScriptIceCombo;
+ * Read-write. If nonzero, this combo is used instead of the IceCombo (can be used to force the player to slide).
+ * If the specified combo is not an Icy Floor combo that affects the player, no sliding will occur.
+
 **************************************************************
 
 untyped HitBy[10];
