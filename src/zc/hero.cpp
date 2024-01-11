@@ -1723,6 +1723,7 @@ void HeroClass::init()
 	
 	ice_vx = ice_vy = 0;
 	ice_combo = script_ice_combo = 0;
+	sliding = false;
 	//Run script!
 	if (( FFCore.getQuestHeaderInfo(vZelda) >= 0x255 ) && (game->get_hasplayed()) ) //if (!hasplayed) runs in game_loop()
 	{
@@ -2765,7 +2766,7 @@ void HeroClass::draw(BITMAP* dest)
 						herotile(&tile, &flip, &extend, ls_sideswim, dir, zinit.heroAnimationStyle);
 					else
 					{
-						if(action == sliding)
+						if(sliding && !z && !fakez)
 							advancetile = false;
 						if(!noliftspr&&isLifting())
 							herotile(&tile, &flip, &extend, ls_liftwalk, dir, zinit.heroAnimationStyle);
@@ -2882,7 +2883,7 @@ void HeroClass::draw(BITMAP* dest)
 						herotile(&tile, &flip, &extend, ls_sideswim, dir, zinit.heroAnimationStyle);
 					else
 					{
-						if(action == sliding)
+						if(sliding && !z && !fakez)
 							advancetile = false;
 						if(!noliftspr&&isLifting())
 							herotile(&tile, &flip, &extend, ls_liftwalk, dir, zinit.heroAnimationStyle);
@@ -2981,7 +2982,7 @@ void HeroClass::draw(BITMAP* dest)
 						herotile(&tile, &flip, &extend, ls_sideswim, dir, zinit.heroAnimationStyle);
 					else
 					{
-						if(action == sliding)
+						if(sliding && !z && !fakez)
 							advancetile = false;
 						if(!noliftspr&&isLifting())
 							herotile(&tile, &flip, &extend, ls_liftwalk, dir, zinit.heroAnimationStyle);
@@ -10006,8 +10007,7 @@ heroanimate_skip_liftwpn:;
 		}
 		else
 		{
-			if(action == sliding) //only supported in Newer movement
-				action = none; FFCore.setHeroAction(none);
+			sliding = false;
 			moveheroOld();
 		}
 	}
@@ -14161,9 +14161,9 @@ void HeroClass::pitfall()
 
 void HeroClass::handle_slide(newcombo const& icecmb, zfix& dx, zfix& dy)
 {
-	if(action != sliding) //just hit the ice
+	if(!sliding) //just hit the ice
 	{
-		action = sliding; FFCore.setHeroAction(sliding);
+		sliding = true;
 		zfix start_perc = icecmb.attribytes[0] / 100_zf;
 		ice_vx = dx * start_perc;
 		ice_vy = dy * start_perc;
@@ -19161,7 +19161,7 @@ void HeroClass::movehero()
 			autostep=false;
 		} // endif (action==walking)
 		
-		if(action != sliding && (action!=swimming)&&(action!=sideswimming)&&(action !=sideswimhit)&&(action !=sideswimattacking)&&(action!=casting)&&(action!=sideswimcasting)&&(action!=drowning)&&(action!=sidedrowning)&&(action!=lavadrowning) && charging==0 && spins==0 && jumping<1)
+		if((action!=swimming)&&(action!=sideswimming)&&(action !=sideswimhit)&&(action !=sideswimattacking)&&(action!=casting)&&(action!=sideswimcasting)&&(action!=drowning)&&(action!=sidedrowning)&&(action!=lavadrowning) && charging==0 && spins==0 && jumping<1)
 		{
 			action=none; FFCore.setHeroAction(none);
 		}
@@ -19364,25 +19364,27 @@ void HeroClass::movehero()
 	if(conv_forcedir > -1)
 		dir = conv_forcedir;
 	
-	ice_combo = get_icy(x+7, y+(bigHitbox?8:12), ICY_PLAYER);
-	auto ic = ice_combo;
-	if(script_ice_combo)
+	if(!is_conveyor_stunned)
 	{
-		if(unsigned(script_ice_combo) < MAXCOMBOS) && check_icy(combobuf[script_ice_combo], ICY_PLAYER))
-			ic = script_ice_combo;
-		else ic = 0;
-	}
-	if(ic)
-	{
-		handle_slide(combobuf[ic], dx, dy);
-	}
-	else
-	{
-		if(action == sliding)
+		bool inair = (z > 0 || fakez > 0);
+		auto ic = ice_combo;
+		if(!inair) //maintain momentum when jumping
+			ic = ice_combo = get_icy(x+7, y+(bigHitbox?8:12), ICY_PLAYER);
+		if(script_ice_combo)
 		{
-			action = none; FFCore.setHeroAction(none);
+			if(unsigned(script_ice_combo) < MAXCOMBOS) && check_icy(combobuf[script_ice_combo], ICY_PLAYER))
+				ic = script_ice_combo;
+			else ic = 0;
 		}
-		ice_vx = ice_vy = 0;
+		if(ic)
+		{
+			handle_slide(combobuf[ic], dx, dy);
+		}
+		else
+		{
+			sliding = false;
+			ice_vx = ice_vy = 0;
+		}
 	}
 	
 	if(!new_engine_move(dx,dy))

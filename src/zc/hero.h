@@ -41,7 +41,7 @@ enum actiontype
 	// New 2.55 ActionTypes
 	falling, lavadrowning, sideswimming, sideswimhit, sideswimattacking, 
 	sidewaterhold1, sidewaterhold2, sideswimcasting, sideswimfreeze, sidedrowning,
-	sideswimisspinning, sideswimischarging, lifting, sliding, la_max
+	sideswimisspinning, sideswimischarging, lifting, la_max
 };
 
 typedef struct tilesequence
@@ -328,6 +328,7 @@ public:
 	zfix ice_vx, ice_vy;
 	int32_t ice_combo;
 	int32_t script_ice_combo;
+	bool sliding;
 
 private:
 	ffcdata const* platform_ffc;
