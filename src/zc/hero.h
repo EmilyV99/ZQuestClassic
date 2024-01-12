@@ -328,7 +328,7 @@ public:
 	zfix ice_vx, ice_vy;
 	int32_t ice_combo;
 	int32_t script_ice_combo;
-	bool sliding;
+	int sliding;
 
 private:
 	ffcdata const* platform_ffc;

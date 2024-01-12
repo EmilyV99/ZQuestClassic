@@ -8089,7 +8089,7 @@ int32_t get_register(int32_t arg)
 		case GAMEGRAVITY:
 		{
 			int32_t indx = ri->d[rINDEX]/10000;
-			if ( ((unsigned)indx) > 2 )
+			if ( ((unsigned)indx) > 3 )
 			//if(indx < 0 || indx > 2)
 			{
 				ret = -10000;
@@ -8107,6 +8107,9 @@ int32_t get_register(int32_t arg)
 						break;
 					case 2: //Sprite Layer Threshold
 						ret = zinit.jump_hero_layer_threshold * 10000;
+						break;
+					case 3: //Air Drag
+						ret = zinit.air_drag.getZLong();
 						break;
 				}
 			}
@@ -20988,7 +20991,7 @@ void set_register(int32_t arg, int32_t value)
 		case GAMEGRAVITY:
 		{
 			int32_t indx = ri->d[rINDEX]/10000;
-			if(indx < 0 || indx > 2)
+			if(indx < 0 || indx > 3)
 			{
 				Z_scripterrlog("Invalid index used to access Game->Gravity[]: %d\n", indx);
 			}
@@ -21004,6 +21007,9 @@ void set_register(int32_t arg, int32_t value)
 						break;
 					case 2: //Sprite Layer Threshold
 						zinit.jump_hero_layer_threshold = value / 10000;
+						break;
+					case 3: //Air Drag
+						zinit.air_drag = zslongToFix(value);
 						break;
 				}
 			}

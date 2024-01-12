@@ -487,6 +487,7 @@ void HeroClass::go_respawn_point()
 {
 	x = respawn_x;
 	y = respawn_y;
+	ice_vx = ice_vy = 0;
 	handle_portal_prox(&mirror_portal);
 	portals.forEach([&](sprite& p)
 	{
@@ -1723,7 +1724,7 @@ void HeroClass::init()
 	
 	ice_vx = ice_vy = 0;
 	ice_combo = script_ice_combo = 0;
-	sliding = false;
+	sliding = 0;
 	//Run script!
 	if (( FFCore.getQuestHeaderInfo(vZelda) >= 0x255 ) && (game->get_hasplayed()) ) //if (!hasplayed) runs in game_loop()
 	{
@@ -2766,8 +2767,6 @@ void HeroClass::draw(BITMAP* dest)
 						herotile(&tile, &flip, &extend, ls_sideswim, dir, zinit.heroAnimationStyle);
 					else
 					{
-						if(sliding && !z && !fakez)
-							advancetile = false;
 						if(!noliftspr&&isLifting())
 							herotile(&tile, &flip, &extend, ls_liftwalk, dir, zinit.heroAnimationStyle);
 						else herotile(&tile, &flip, &extend, ls_walk, dir, zinit.heroAnimationStyle);
@@ -2883,8 +2882,6 @@ void HeroClass::draw(BITMAP* dest)
 						herotile(&tile, &flip, &extend, ls_sideswim, dir, zinit.heroAnimationStyle);
 					else
 					{
-						if(sliding && !z && !fakez)
-							advancetile = false;
 						if(!noliftspr&&isLifting())
 							herotile(&tile, &flip, &extend, ls_liftwalk, dir, zinit.heroAnimationStyle);
 						else herotile(&tile, &flip, &extend, ls_walk, dir, zinit.heroAnimationStyle);
@@ -2982,8 +2979,6 @@ void HeroClass::draw(BITMAP* dest)
 						herotile(&tile, &flip, &extend, ls_sideswim, dir, zinit.heroAnimationStyle);
 					else
 					{
-						if(sliding && !z && !fakez)
-							advancetile = false;
 						if(!noliftspr&&isLifting())
 							herotile(&tile, &flip, &extend, ls_liftwalk, dir, zinit.heroAnimationStyle);
 						else herotile(&tile, &flip, &extend, ls_walk, dir, zinit.heroAnimationStyle);
@@ -10007,7 +10002,7 @@ heroanimate_skip_liftwpn:;
 		}
 		else
 		{
-			sliding = false;
+			sliding = 0;
 			moveheroOld();
 		}
 	}
@@ -14161,41 +14156,119 @@ void HeroClass::pitfall()
 
 void HeroClass::handle_slide(newcombo const& icecmb, zfix& dx, zfix& dy)
 {
+	bool inair = z || fakez;
+	zfix odx = dx, ody = dy;
+	if(sliding == 2 && !inair) //landed from air-sliding
+	{
+		if((ice_vx+odx).sign() != ice_vx.sign())
+			ice_vx = 0;
+		if((ice_vy+ody).sign() != ice_vy.sign())
+			ice_vy = 0;
+		sliding = 1;
+	}
 	if(!sliding) //just hit the ice
 	{
-		sliding = true;
+		if(inair)
+			return;
+		sliding = 1;
 		zfix start_perc = icecmb.attribytes[0] / 100_zf;
 		ice_vx = dx * start_perc;
 		ice_vy = dy * start_perc;
 	}
 	else //not the first frame sliding
 	{
+		if(inair)
+			sliding = 2;
 		zfix accel = zslongToFix(zc_max(1,icecmb.attributes[0]));
 		zfix decel = zslongToFix(zc_max(1,icecmb.attributes[1]));
 		//!TODO Traction Boots can be added here, with a multiplier on accel/decel
-		if(dx > 0)
-			ice_vx += accel;
-		else if(dx < 0)
-			ice_vx -= accel;
-		else if(ice_vx)
+		//Accelerate in the pushed direction
+		if(inair)
 		{
-			if(ice_vx.getAbs() < decel)
-				ice_vx = 0;
-			else if(ice_vx > 0)
-				ice_vx -= decel;
-			else ice_vx += decel;
+			static const int air_accel = 100;
+			accel = abs(odx)/air_accel;
+			if(accel)
+			{
+				if(odx < 0)
+				{
+					if(ice_vx - accel < odx)
+					{
+						if(ice_vx > odx)
+							ice_vx = odx;
+						else odx = 0; //allow decel
+					}
+					else ice_vx -= accel;
+				}
+				else //if(odx > 0)
+				{
+					if(ice_vx + accel > odx)
+					{
+						if(ice_vx < odx)
+							ice_vx = odx;
+						else odx = 0; //allow decel
+					}
+					else ice_vx += accel;
+				}
+			}
+			accel = abs(ody)/air_accel;
+			if(accel)
+			{
+				if(ody < 0)
+				{
+					if(ice_vy - accel < ody)
+					{
+						if(ice_vy > ody)
+							ice_vy = ody;
+						else ody = 0; //allow decel
+					}
+					else ice_vy -= accel;
+				}
+				else //if(ody > 0)
+				{
+					if(ice_vy + accel > ody)
+					{
+						if(ice_vy < ody)
+							ice_vy = ody;
+						else ody = 0; //allow decel
+					}
+					else ice_vy += accel;
+				}
+			}
 		}
-		if(dy > 0)
-			ice_vy += accel;
-		else if(dy < 0)
-			ice_vy -= accel;
-		else if(ice_vy)
+		else if(accel)
 		{
-			if(ice_vy.getAbs() < decel)
-				ice_vy = 0;
-			else if(ice_vy > 0)
-				ice_vy -= decel;
-			else ice_vy += decel;
+			if(odx > 0)
+				ice_vx += accel;
+			else if(odx < 0)
+				ice_vx -= accel;
+			if(ody > 0)
+				ice_vy += accel;
+			else if(ody < 0)
+				ice_vy -= accel;
+		}
+		//Decelerate in non-pushed direction
+		if(inair)
+			decel = zinit.air_drag;
+		if(decel)
+		{
+			if(ice_vx)
+			{
+				if(!odx && abs(ice_vx) < decel)
+					ice_vx = 0;
+				else if(ice_vx > 0 && odx <= 0)
+					ice_vx -= decel;
+				else if(ice_vx < 0 && odx >= 0)
+					ice_vx += decel;
+			}
+			if(ice_vy)
+			{
+				if(!ody && abs(ice_vy) < decel)
+					ice_vy = 0;
+				else if(ice_vy > 0 && ody <= 0)
+					ice_vy -= decel;
+				else if(ice_vy < 0 && ody >= 0)
+					ice_vy += decel;
+			}
 		}
 	}
 	zfix cap = zslongToFix(zc_max(1,abs(icecmb.attributes[2])));
@@ -19140,6 +19213,10 @@ bool HeroClass::premove()
 }
 void HeroClass::movehero()
 {
+	bool earlyret = false;
+	bool nohorz = (isdungeon() && (y<=26 || y>=134) && !get_qr(qr_FREEFORM) && !toogam);
+	bool novert = (isdungeon() && (x<=26 || x>=214) && !get_qr(qr_FREEFORM) && !toogam);
+	zfix dx, dy;
 	auto push=pushing;
 	pushing=0;
 	
@@ -19155,7 +19232,8 @@ void HeroClass::movehero()
 				if(attackclk>0) SetAttack();
 				else {action = none; FFCore.setHeroAction(none);}
 				hero_count=-1;
-				return;
+				earlyret = true;
+				goto newmove_slide;
 			}
 			
 			autostep=false;
@@ -19167,10 +19245,6 @@ void HeroClass::movehero()
 		}
 	}
 	
-	bool nohorz = (isdungeon() && (y<=26 || y>=134) && !get_qr(qr_FREEFORM) && !toogam);
-	bool novert = (isdungeon() && (x<=26 || x>=214) && !get_qr(qr_FREEFORM) && !toogam);
-	
-	zfix dx, dy;
 	if(is_conveyor_stunned)
 	{
 		dx = convey_forcex;
@@ -19335,9 +19409,11 @@ void HeroClass::movehero()
 					}
 				}
 			}
-			return;
+			earlyret = true;
 		}
-		get_move(holddir,dx,dy,dir);
+		if(earlyret)
+			dx = dy = 0;
+		else get_move(holddir,dx,dy,dir);
 	}
 	else //4-way
 	{
@@ -19361,15 +19437,34 @@ void HeroClass::movehero()
 		}
 		get_move(holddir,dx,dy,dir);
 	}
+	
+newmove_slide:
 	if(conv_forcedir > -1)
 		dir = conv_forcedir;
-	
 	if(!is_conveyor_stunned)
 	{
 		bool inair = (z > 0 || fakez > 0);
 		auto ic = ice_combo;
 		if(!inair) //maintain momentum when jumping
-			ic = ice_combo = get_icy(x+7, y+(bigHitbox?8:12), ICY_PLAYER);
+		{
+			const int sens = 2;
+			auto ty = y+(bigHitbox?0:8);
+			int xs[] = {x+7, x+sens, x+sens, x+15-sens, x+15-sens};
+			int ys[] = {y+(bigHitbox?8:12), ty+sens, y+15-sens, ty+sens, y+15-sens};
+			bool found = false;
+			for(int q = 0; q < 5; ++q)
+			{
+				auto ice = get_icy(xs[q], ys[q], ICY_PLAYER);
+				if(ice)
+				{
+					ic = ice_combo = ice;
+					found = true;
+					break;
+				}
+			}
+			if(!found)
+				ic = ice_combo = 0;
+		}
 		if(script_ice_combo)
 		{
 			if((unsigned(script_ice_combo) < MAXCOMBOS) && check_icy(combobuf[script_ice_combo], ICY_PLAYER))
@@ -19379,13 +19474,16 @@ void HeroClass::movehero()
 		if(ic)
 		{
 			handle_slide(combobuf[ic], dx, dy);
+			earlyret = false;
 		}
 		else
 		{
-			sliding = false;
+			sliding = 0;
 			ice_vx = ice_vy = 0;
 		}
 	}
+	if(earlyret)
+		return;
 	
 	if(!new_engine_move(dx,dy))
 		pushing = push+1;

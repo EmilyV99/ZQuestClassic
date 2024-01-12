@@ -3272,7 +3272,8 @@ enum //Indexes for Game->Gravity[]
 {
 	GR_STRENGTH,
 	GR_TERMINALV,
-	GR_SPRLAYER
+	GR_SPRLAYER,
+	GR_AIRDRAG
 };
 
 enum //Indexes for Game->Scrolling[]
