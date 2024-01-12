@@ -483,11 +483,19 @@ void HeroClass::set_respawn_point(bool setwarp)
 	y = oldy;
 }
 
+void HeroClass::clear_ice()
+{
+	ice_vx = ice_vy = 0;
+	ice_entry_count = ice_entry_mcount = 0;
+	ice_combo = 0;
+	sliding = 0;
+}
+
 void HeroClass::go_respawn_point()
 {
 	x = respawn_x;
 	y = respawn_y;
-	ice_vx = ice_vy = 0;
+	clear_ice();
 	handle_portal_prox(&mirror_portal);
 	portals.forEach([&](sprite& p)
 	{
@@ -1722,9 +1730,8 @@ void HeroClass::init()
 		//zprint2("defence[%d] is: %d\n", q, defence[q]);
 	}
 	
-	ice_vx = ice_vy = 0;
-	ice_combo = script_ice_combo = 0;
-	sliding = 0;
+	clear_ice();
+	script_ice_combo = 0;
 	//Run script!
 	if (( FFCore.getQuestHeaderInfo(vZelda) >= 0x255 ) && (game->get_hasplayed()) ) //if (!hasplayed) runs in game_loop()
 	{
@@ -14174,6 +14181,7 @@ void HeroClass::handle_slide(newcombo const& icecmb, zfix& dx, zfix& dy)
 		zfix start_perc = icecmb.attribytes[0] / 100_zf;
 		ice_vx = dx * start_perc;
 		ice_vy = dy * start_perc;
+		ice_entry_count = ice_entry_mcount = icecmb.attribytes[1];
 	}
 	else //not the first frame sliding
 	{
@@ -14181,6 +14189,17 @@ void HeroClass::handle_slide(newcombo const& icecmb, zfix& dx, zfix& dy)
 			sliding = 2;
 		zfix accel = zslongToFix(zc_max(1,icecmb.attributes[0]));
 		zfix decel = zslongToFix(zc_max(1,icecmb.attributes[1]));
+		
+		if(ice_entry_count)
+		{
+			if(--ice_entry_count)
+			{
+				zfix perc = zfix(ice_entry_count)/ice_entry_mcount;
+				perc *= perc; //square the portion, for a better transition
+				zfix normal_rate = zfix(steprate)/100/2;
+				decel = (perc*normal_rate)+((1-perc)*decel);
+			}
+		}
 		//!TODO Traction Boots can be added here, with a multiplier on accel/decel
 		//Accelerate in the pushed direction
 		if(inair)
@@ -14274,6 +14293,8 @@ void HeroClass::handle_slide(newcombo const& icecmb, zfix& dx, zfix& dy)
 	zfix cap = zslongToFix(zc_max(1,abs(icecmb.attributes[2])));
 	dx = ice_vx = vbound(ice_vx, -cap, cap);
 	dy = ice_vy = vbound(ice_vy, -cap, cap);
+	if(!dx && !dy)
+		ice_entry_count = 0;
 }
 void HeroClass::mod_steps(std::vector<zfix*>& v)
 {
@@ -19476,12 +19497,9 @@ newmove_slide:
 			handle_slide(combobuf[ic], dx, dy);
 			earlyret = false;
 		}
-		else
-		{
-			sliding = 0;
-			ice_vx = ice_vy = 0;
-		}
+		else clear_ice();
 	}
+	else clear_ice();
 	if(earlyret)
 		return;
 	

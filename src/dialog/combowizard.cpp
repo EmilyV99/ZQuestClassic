@@ -784,6 +784,7 @@ void ComboWizardDialog::endUpdate()
 			if(wasplayer && !player)
 			{
 				local_ref.attribytes[0] = 0;
+				local_ref.attribytes[1] = 0;
 				local_ref.attributes[0] = 0;
 				local_ref.attributes[1] = 0;
 				local_ref.attributes[2] = 0;
@@ -888,9 +889,10 @@ void combo_default(newcombo& ref, bool typeonly)
 		case cICY:
 			ref.usrflags |= cflag1|cflag2;
 			ref.attribytes[0] = 75;
-			ref.attributes[0] = 0.0250_zl;
-			ref.attributes[1] = 0.0100_zl;
-			ref.attributes[2] = 3.0000_zl;
+			ref.attribytes[1] = 30;
+			ref.attributes[0] = 0.0400_zl;
+			ref.attributes[1] = 0.0200_zl;
+			ref.attributes[2] = 1.5000_zl;
 			break;
 		//CHESTS
 		case cLOCKEDCHEST:
@@ -2469,6 +2471,16 @@ std::shared_ptr<GUI::Widget> ComboWizardDialog::view()
 							onValChangedFunc = [&](GUI::TextField::type,std::string_view,int32_t val)
 							{
 								local_ref.attribytes[0] = val;
+							}),
+						Label(text = "Entry Leeway Frames", hAlign = 1.0),
+						INFOBTN("For this many frames after entering the ice, the player will have additional traction. The traction gradually decreases over time until the frames are up."),
+						TextField(
+							fitParent = true, minwidth = 8_em,
+							type = GUI::TextField::type::SWAP_BYTE,
+							low = 0, high = 255, val = local_ref.attribytes[1],
+							onValChangedFunc = [&](GUI::TextField::type,std::string_view,int32_t val)
+							{
+								local_ref.attribytes[1] = val;
 							}),
 						Label(text = "Acceleration", hAlign = 1.0),
 						INFOBTN("Speed gained when holding a direction, in pixels per frame."),

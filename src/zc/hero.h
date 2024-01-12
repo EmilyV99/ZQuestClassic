@@ -329,6 +329,7 @@ public:
 	int32_t ice_combo;
 	int32_t script_ice_combo;
 	int sliding;
+	byte ice_entry_count, ice_entry_mcount;
 
 private:
 	ffcdata const* platform_ffc;
@@ -336,6 +337,7 @@ private:
 public:
 	
 	// Methods below here.
+	void clear_ice();
 	bool isLifting();
 	void set_liftflags(int liftid);
 	void doSwitchHook(byte style);
