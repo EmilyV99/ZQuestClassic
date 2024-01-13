@@ -23,6 +23,7 @@
 #include "zinfo.h"
 #include "base/misctypes.h"
 #include "music_playback.h"
+#include "heroanim.h"
 extern FFScript FFCore;
 extern HeroClass Hero;
 extern ZModule zcm;
@@ -2277,14 +2278,11 @@ weapon* find_first_wtype(int wtype)
 }
 void HeroClass::draw(BITMAP* dest)
 {
-	/*{
-		char buf[36];
-		//sprintf(buf,"%d %d %d %d %d %d %d",dir, action, attack, attackclk, charging, spins, tapping);
-		textout_shadowed_ex(framebuf,font, buf, 2,72,WHITE,BLACK,-1);
-	}*/
 	int32_t oxofs = xofs, oyofs = yofs;
 	bool shieldModify = false;
 	bool invisible=(dontdraw>0) || (tmpscr->flags3&fINVISHERO);
+	
+	AnimPosData pos_data;
 	
 	{
 		if(action==dying)
@@ -2297,8 +2295,7 @@ void HeroClass::draw(BITMAP* dest)
 			goto herodraw_end;
 		}
 		
-		bool useltm=(get_qr(qr_EXPANDEDLTM) != 0);
-		
+		bool useltm = get_qr(qr_EXPANDEDLTM);
 		
 		if(!invisible)
 			yofs = oyofs-((!BSZ && isdungeon() && currscr<128 && !get_qr(qr_HERODUNGEONPOSFIX)) ? 2 : 0);
@@ -2367,6 +2364,7 @@ void HeroClass::draw(BITMAP* dest)
 						
 						w = (weapon*)Lwpns.spr(Lwpns.Count()-1);
 					}
+					//!TODO NEWHEROSPRITE
 					positionNet(w, itemid);
 				}
 				else if((attack==wSword || attack==wWand || ((attack==wFire || attack==wCByrna) && itemsbuf[itemid].wpn)) && wpnsbuf[itemsbuf[itemid].wpn].tile)
@@ -2387,6 +2385,7 @@ void HeroClass::draw(BITMAP* dest)
 						}
 					}
 					
+					//!TODO NEWHEROSPRITE
 					// These are set by positionSword(), above or in checkstab()
 					yofs += slashyofs;
 					xofs += slashxofs;
@@ -2402,6 +2401,7 @@ void HeroClass::draw(BITMAP* dest)
 			|| (attack==wHammer && attackclk<=30)
 			|| (attack==wBugNet && attackclk<NET_CLK_TOTAL))
 			{
+				//!TODO NEWHEROSPRITE 
 				if(!invisible)
 				{
 					herotile(&tile, &flip, &extend, (IsSideSwim())?ls_sideswimstab:ls_stab, dir, zinit.heroAnimationStyle);
@@ -2482,6 +2482,7 @@ void HeroClass::draw(BITMAP* dest)
 			
 			if(attack==wHammer) // To do: possibly abstract this out to a positionHammer routine?
 			{
+				//!TODO NEWHEROSPRITE 
 				int32_t wy=1;
 				int32_t wx=1;
 				int32_t f=0,t,cs2;
@@ -3026,30 +3027,40 @@ void HeroClass::draw(BITMAP* dest)
 			yofs=(get_qr(qr_OLD_DRAWOFFSET)?playing_field_offset:original_playing_field_offset) - 2;
 		}
 		
+		bool holdup = false;
 		if(action==landhold1 || action==landhold2)
 		{
-			useltm=(get_qr(qr_EXPANDEDLTM) != 0);
+			holdup = true;
 			yofs = oyofs-((!BSZ && isdungeon() && currscr<128 && !get_qr(qr_HERODUNGEONPOSFIX)) ? 2 : 0);
-			herotile(&tile, &flip, &extend, (action==landhold1)?ls_landhold1:ls_landhold2, dir, zinit.heroAnimationStyle);
+			auto data = new_hero_tile(tile, flip, extend, useltm, dir, aclk, hspr_holdup, action==landhold1 ? 0 : 1);
+			if(data)
+				pos_data = data;
+			else
+				pos_data = {action==landhold1?-4:0, get_qr(qr_NOITEMOFFSET)?-17:-16, 0};
 		}
 		else if(action==waterhold1 || action==waterhold2)
 		{
-			useltm=(get_qr(qr_EXPANDEDLTM) != 0);
-			herotile(&tile, &flip, &extend, (action==waterhold1)?ls_waterhold1:ls_waterhold2, dir, zinit.heroAnimationStyle);
+			holdup = true;
+			auto data = new_hero_tile(tile, flip, extend, useltm, dir, aclk, hspr_holdup, action==waterhold1 ? 2 : 3);
+			if(data)
+				pos_data = data;
+			else
+				pos_data = {action==waterhold1?-4:0, get_qr(qr_NOITEMOFFSET)?-13:-12, 0};
 		}
 		else if(action==sidewaterhold1 || action==sidewaterhold2)
 		{
-			useltm=(get_qr(qr_EXPANDEDLTM) != 0);
-			herotile(&tile, &flip, &extend, (action==sidewaterhold1)?ls_sidewaterhold1:ls_sidewaterhold2, dir, zinit.heroAnimationStyle);
+			holdup = true;
+			auto data = new_hero_tile(tile, flip, extend, useltm, dir, aclk, hspr_holdup, action==sidewaterhold1 ? 4 : 5);
+			if(data)
+				pos_data = data;
+			else
+				pos_data = {action==sidewaterhold1?-4:0, get_qr(qr_NOITEMOFFSET)?-17:-16, 0};
 		}
 		
-		if(action!=casting && action!=sideswimcasting)
-		{
-			if(useltm)
-			{
-				if (script_hero_sprite <= 0 ) tile+=getTileModifier();
-			}
-		}
+		if(action==casting || action==sideswimcasting)
+			useltm = false;
+		if(useltm && script_hero_sprite <= 0)
+			tile += getTileModifier();
 		
 		// Stone of Agony
 		if(agony)
@@ -3071,86 +3082,52 @@ void HeroClass::draw(BITMAP* dest)
 			masked_draw(dest);
 		
 		//draw held items after Hero so they don't go behind his head
-		if(action==landhold1 || action==landhold2)
+		if(holdup && holditem > -1)
 		{
-			if(holditem > -1)
-			{
-				if(get_qr(qr_HOLDITEMANIMATION))
-				{
-					putitem2(dest,x-((action==landhold1)?4:0),y+yofs-16-(get_qr(qr_NOITEMOFFSET))-fakez-z,holditem,lens_hint_item[holditem][0], lens_hint_item[holditem][1], 0);
-				}
-				else
-				{
-					putitem(dest,x-((action==landhold1)?4:0),y+yofs-16-(get_qr(qr_NOITEMOFFSET))-fakez-z,holditem);
-				}
-			}
-		}
-		else if(action==waterhold1 || action==waterhold2)
-		{
-			if(holditem > -1)
-			{
-				if(get_qr(qr_HOLDITEMANIMATION))
-				{
-					putitem2(dest,x-((action==waterhold1)?4:0),y+yofs-12-(get_qr(qr_NOITEMOFFSET))-fakez-z,holditem,lens_hint_item[holditem][0], lens_hint_item[holditem][1], 0);
-				}
-				else
-				{
-					putitem(dest,x-((action==waterhold1)?4:0),y+yofs-12-(get_qr(qr_NOITEMOFFSET))-fakez-z,holditem);
-				}
-			}
-		}
-		else if(action==sidewaterhold1 || action==sidewaterhold2) //!DIMITODO: Check to see if this looks right or if it needs waterhold's offset.
-		{
-			if(holditem > -1)
-			{
-				if(get_qr(qr_HOLDITEMANIMATION))
-				{
-					putitem2(dest,x-((action==sidewaterhold1)?4:0),y+yofs-16-(get_qr(qr_NOITEMOFFSET))-fakez-z,holditem,lens_hint_item[holditem][0], lens_hint_item[holditem][1], 0);
-				}
-				else
-				{
-					putitem(dest,x-((action==sidewaterhold1)?4:0),y+yofs-16-(get_qr(qr_NOITEMOFFSET))-fakez-z,holditem);
-				}
-			}
-		}
-		if(fairyclk==0||(get_qr(qr_NOHEARTRING)))
-		{
-			goto herodraw_end;
+			if(get_qr(qr_HOLDITEMANIMATION))
+				putitem2(dest,x+pos_data.x,y+yofs+pos_data.y-fakez-z,holditem,
+					lens_hint_item[holditem][0], lens_hint_item[holditem][1], 0);
+			else
+				putitem(dest,x+pos_data.x,y+yofs+pos_data.y-fakez-z,holditem);
 		}
 		
-		double a2 = fairyclk*4.5 + 90;
-		int32_t hearts=0;
-		int32_t htile = 2;
-		
-		do
+		if(fairyclk && !get_qr(qr_NOHEARTRING))
 		{
-			int32_t nx=125;
+			double a2 = fairyclk*4.5 + 90;
+			int32_t hearts=0;
+			int32_t htile = 2;
 			
-			if(get_qr(qr_HEARTRINGFIX))
+			do
 			{
-				nx=x;
+				int32_t nx=125;
+				
+				if(get_qr(qr_HEARTRINGFIX))
+				{
+					nx=x;
+				}
+				
+				int32_t ny=88;
+				
+				if(get_qr(qr_HEARTRINGFIX))
+				{
+					ny=y;
+				}
+				
+				int32_t tx = zc::math::CosD(a2)*53  +nx;
+				int32_t ty = -zc::math::SinD(a2)*53 +ny+playing_field_offset;
+				overtile8(dest,htile,tx,ty,1,0);
+				a2-=45;
+				++hearts;
 			}
-			
-			int32_t ny=88;
-			
-			if(get_qr(qr_HEARTRINGFIX))
-			{
-				ny=y;
-			}
-			
-			int32_t tx = zc::math::CosD(a2)*53  +nx;
-			int32_t ty = -zc::math::SinD(a2)*53 +ny+playing_field_offset;
-			overtile8(dest,htile,tx,ty,1,0);
-			a2-=45;
-			++hearts;
+			while(a2>90 && hearts<8);
 		}
-		while(a2>90 && hearts<8);
 	}
 herodraw_end:
 	xofs=oxofs;
 	yofs=oyofs;
 	do_primitives(dest, SPLAYER_PLAYER_DRAW, tmpscr, 0, playing_field_offset);
 }
+
 
 void HeroClass::masked_draw(BITMAP* dest)
 {
